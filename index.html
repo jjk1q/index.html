@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#E9E1D3">
+<title>Knochenlauf | PAWEAREA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Jost:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sand: #E9E1D3;
+    --linen: #DCD0BB;
+    --ink: #000000;
+    --cognac: #8C5A33;
+    --ivory: #F6F0E4;
+    --umber: #4A3F31;
+    --serif: 'Bodoni Moda', 'Bodoni 72', Didot, Georgia, serif;
+    --sans: 'Jost', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--sand);
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  body { font-family: var(--sans); color: var(--ink); }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* HUD */
+  .hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: calc(env(safe-area-inset-top) + 18px) 22px 0;
+    pointer-events: none;
+    opacity: 0; transition: opacity .4s ease;
+  }
+  .hud.on { opacity: 1; }
+  .score { font-family: var(--serif); font-size: 44px; line-height: 1; }
+  .score span { display: inline-block; transform-origin: left bottom; }
+  .score span.pop { animation: pop .25s ease-out; }
+  .score small { display: block; font-family: var(--sans); font-size: 13px; margin-top: 6px; color: var(--umber); }
+  .lives { display: flex; gap: 8px; padding-top: 8px; }
+  .lives svg { width: 24px; height: 24px; transition: transform .3s ease; }
+  .lives svg.lost { transform: scale(.85); }
+  @keyframes pop { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+  /* Screens */
+  .screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 0 28px calc(env(safe-area-inset-bottom) + 32px);
+    background: linear-gradient(to bottom, rgba(233,225,211,0) 48%, rgba(233,225,211,.92) 62%, var(--sand) 74%);
+  }
+  .screen.hidden { display: none; }
+  #over { background: linear-gradient(to bottom, rgba(233,225,211,0) 26%, rgba(233,225,211,.92) 42%, var(--sand) 54%); }
+  .brand {
+    position: absolute; top: calc(env(safe-area-inset-top) + 20px); left: 28px;
+    font-family: var(--serif); font-size: 15px; letter-spacing: .32em;
+  }
+  .panel { width: 100%; max-width: 420px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(48px, 14vw, 88px); line-height: .95; letter-spacing: -.01em;
+    margin-bottom: 18px;
+  }
+  h2 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(40px, 11vw, 64px); line-height: 1; margin-bottom: 10px;
+  }
+  .panel p { font-size: 17px; line-height: 1.45; color: var(--umber); max-width: 34ch; }
+  .panel p strong { font-weight: 500; color: var(--ink); }
+  .panel .fine { font-size: 13px; margin-top: 14px; }
+
+  /* Button like a stitched leather tag */
+  .stitch {
+    position: relative; display: block; width: 100%;
+    margin-top: 26px; padding: 19px 24px;
+    background: var(--ink); color: var(--ivory);
+    font: 500 17px/1 var(--sans); letter-spacing: .02em;
+    border: 0; border-radius: 14px; cursor: pointer;
+    transition: transform .12s ease;
+  }
+  .stitch::after {
+    content: ""; position: absolute; inset: 5px;
+    border: 1.5px dashed rgba(246,240,228,.5); border-radius: 10px;
+    pointer-events: none;
+  }
+  .stitch:active { transform: scale(.98); }
+  .stitch:focus-visible { outline: 2px solid var(--cognac); outline-offset: 3px; }
+
+  /* Prize card */
+  .prize {
+    position: relative; margin-top: 22px; padding: 22px 22px 20px;
+    background: var(--ivory); border-radius: 14px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .prize::after {
+    content: ""; position: absolute; inset: 6px;
+    border: 1.5px dashed var(--cognac); border-radius: 9px; opacity: .55;
+    pointer-events: none;
+  }
+  .prize-label { font-size: 13px; color: var(--cognac); }
+  .prize-name { font-family: var(--serif); font-size: 28px; line-height: 1.1; }
+  .code { font-weight: 500; font-size: 22px; letter-spacing: .1em; margin: 6px 0 4px; }
+  .prize-text { font-size: 14px; line-height: 1.4; color: var(--umber); }
+
+  @media (max-height: 700px) {
+    h2 { font-size: 38px; }
+    .panel p { font-size: 16px; }
+    .prize { margin-top: 14px; padding: 16px 18px 14px; }
+    .prize-name { font-size: 24px; }
+    .code { font-size: 20px; margin: 2px 0; }
+    .stitch { margin-top: 16px; padding: 16px 20px; }
+  }
+  @media (min-width: 720px) {
+    .screen { padding-left: 8vw; }
+    .brand { left: 8vw; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Spielfeld"></canvas>
+
+<div class="hud" id="hud" aria-live="polite">
+  <div class="score"><span id="score">0</span><small>Knochen</small></div>
+  <div class="lives" id="lives" aria-label="Leben"></div>
+</div>
+
+<section class="screen" id="menu">
+  <div class="brand">PAWEAREA</div>
+  <div class="panel">
+    <h1>Knochenlauf</h1>
+    <p>Wisch nach links oder rechts. Sammle Knochen und weich den Hindernissen aus. Du hast drei Leben.</p>
+    <button class="stitch" id="startBtn">Spiel starten</button>
+    <p class="fine">Am Computer: Pfeiltasten</p>
+  </div>
+</section>
+
+<section class="screen hidden" id="over">
+  <div class="brand">PAWEAREA</div>
+  <div class="panel">
+    <h2>Gut gelaufen.</h2>
+    <p>Du hast <strong id="final">0</strong> Knochen gesammelt.</p>
+    <div class="prize">
+      <span class="prize-label">Dein Gewinn</span>
+      <span class="prize-name">Ein Leckerli gratis</span>
+      <span class="code" id="code">PW-0000</span>
+      <span class="prize-text">Zeig diesen Code an der Kassa in der Bethlehemstraße 1b, Linz.</span>
+    </div>
+    <button class="stitch" id="againBtn">Nochmal spielen</button>
+    <p class="fine">Prototyp: Der Code ist nicht gültig.</p>
+  </div>
+</section>
+
+<script>
+(() => {
+  const C = {
+    skyTop: '#EFE9DE', skyLow: '#E4DACA', sand: '#E9E1D3', road: '#DCD0BB',
+    ink: '#000000', cognac: '#8C5A33', ivory: '#F6F0E4', dash: '#C4B498', shadow: 'rgba(0,0,0,.13)'
+  };
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const cvs = document.getElementById('game');
+  const ctx = cvs.getContext('2d');
+  const hud = document.getElementById('hud');
+  const scoreEl = document.getElementById('score');
+  const livesEl = document.getElementById('lives');
+  const menuEl = document.getElementById('menu');
+  const overEl = document.getElementById('over');
+
+  let W = 0, H = 0;
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // World and projection
+  const FAR = 70;          // how far ahead we see
+  const D0 = 6;            // camera distance behind the dog
+  const ROAD_HALF = 1.65;  // road half width in lane units
+  let horizonY = 0, playerY = 0, laneGap = 0;
+  const CAM = { menu: [0.22, 0.50], play: [0.27, 0.80], over: [0.12, 0.33] };
+
+  const proj = z => D0 / (z + D0);
+  const sy = p => horizonY + (playerY - horizonY) * p;
+  const sx = (x, p) => W / 2 + x * laneGap * p;
+
+  // Game state
+  let state = 'menu';      // menu | play | over
+  let t = 0, speed = 9, dist = 0, cursor = 0;
+  let score = 0, lives = 3, lane = 0, dogX = 0, invul = 0, shake = 0;
+  let objs = [], particles = [], objAlpha = 1;
+
+  function reset() {
+    speed = 15; score = 0; lives = 3; lane = 0; invul = 0; shake = 0;
+    objs = []; particles = [];
+    cursor = dist + 22;
+    objAlpha = 1; renderLives(); scoreEl.textContent = '0';
+  }
+
+  const rndLane = () => Math.floor(Math.random() * 3) - 1;
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const obstacleType = () => Math.random() < 0.55 ? 'hydrant' : 'barrier';
+
+  // Spawns the next chunk of the track. Never blocks all three lanes.
+  function genChunk() {
+    const gap = Math.max(8, speed * 0.55) + Math.random() * 3;
+    const r = Math.random();
+    const hard = Math.min(0.6, (speed - 13) / 30 + 0.15);
+
+    if (r < 0.4) {
+      const ln = rndLane();
+      const n = 4 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) objs.push({ type: 'bone', lane: ln, d: cursor + i * 2.2 });
+      cursor += n * 2.2 + gap * 0.6;
+    } else if (r < 0.8) {
+      const lanes = shuffle([-1, 0, 1]);
+      const blocked = Math.random() < hard ? 2 : 1;
+      for (let i = 0; i < blocked; i++) objs.push({ type: obstacleType(), lane: lanes[i], d: cursor });
+      const free = lanes[blocked];
+      for (let i = -1; i <= 1; i++) objs.push({ type: 'bone', lane: free, d: cursor + i * 2.2 });
+      cursor += gap;
+    } else {
+      const a = rndLane();
+      let b = rndLane(); while (b === a) b = rndLane();
+      const stagger = Math.max(7, speed * 0.5);
+      objs.push({ type: obstacleType(), lane: a, d: cursor });
+      objs.push({ type: obstacleType(), lane: b, d: cursor + stagger });
+      objs.push({ type: 'bone', lane: a, d: cursor + stagger });
+      cursor += stagger + gap;
+    }
+  }
+
+  // Input
+  function move(dir) {
+    if (state !== 'play') return;
+    lane = Math.max(-1, Math.min(1, lane + dir));
+  }
+  let px = null, py = null;
+  window.addEventListener('pointerdown', e => { if (state === 'play') { px = e.clientX; py = e.clientY; } });
+  window.addEventListener('pointermove', e => {
+    if (px === null) return;
+    const dx = e.clientX - px, dy = e.clientY - py;
+    if (Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(dy)) { move(dx > 0 ? 1 : -1); px = null; }
+  });
+  window.addEventListener('pointerup', e => {
+    if (px === null) return;
+    const dx = e.clientX - px, dy = e.clientY - py;
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) move(e.clientX < W / 2 ? -1 : 1);
+    px = null;
+  });
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') move(-1);
+    if (e.key === 'ArrowRight' || e.key === 'd') move(1);
+  });
+
+  const vibrate = ms => { if (navigator.vibrate) try { navigator.vibrate(ms); } catch (_) {} };
+
+  // HUD
+  const PAW = filled => `<svg viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="${filled ? C.ink : 'none'}" stroke="${C.ink}" stroke-width="1.4">
+        <ellipse cx="12" cy="16.2" rx="5" ry="4.2"/>
+        <ellipse cx="5.2" cy="10.4" rx="2" ry="2.5"/>
+        <ellipse cx="9.4" cy="6.6" rx="2" ry="2.6"/>
+        <ellipse cx="14.6" cy="6.6" rx="2" ry="2.6"/>
+        <ellipse cx="18.8" cy="10.4" rx="2" ry="2.5"/>
+      </g></svg>`;
+  function renderLives() {
+    livesEl.innerHTML = [0, 1, 2].map(i => PAW(i < lives)).join('');
+    [...livesEl.children].forEach((s, i) => { if (i >= lives) s.classList.add('lost'); });
+    livesEl.setAttribute('aria-label', `${lives} Leben`);
+  }
+  function bumpScore() {
+    scoreEl.textContent = score;
+    scoreEl.classList.remove('pop'); void scoreEl.offsetWidth; scoreEl.classList.add('pop');
+  }
+
+  // Flow
+  function start() {
+    reset();
+    state = 'play';
+    menuEl.classList.add('hidden'); overEl.classList.add('hidden');
+    hud.classList.add('on');
+  }
+  function endGame() {
+    state = 'over';
+    document.getElementById('final').textContent = score;
+    const abc = 'ACDEFHJKMNPRTUVWXY3479';
+    let code = 'PW-';
+    for (let i = 0; i < 4; i++) code += abc[Math.floor(Math.random() * abc.length)];
+    document.getElementById('code').textContent = code;
+    setTimeout(() => {
+      hud.classList.remove('on');
+      overEl.classList.remove('hidden');
+    }, 750);
+  }
+  document.getElementById('startBtn').addEventListener('click', start);
+  document.getElementById('againBtn').addEventListener('click', start);
+
+  // Update
+  function update(dt) {
+    t += dt;
+    if (state === 'play') speed = Math.min(34, speed + dt * 0.3);
+    else if (state === 'over') { speed = Math.max(0, speed - dt * 18); objAlpha = Math.max(0, objAlpha - dt * 1.6); }
+    else speed = 10;
+    dist += speed * dt;
+
+    // camera glides between menu, play and result framing
+    const [th, tp] = CAM[state];
+    if (!horizonY) { horizonY = H * th; playerY = H * tp; }
+    const f = Math.min(1, dt * 3.5);
+    horizonY += (H * th - horizonY) * f;
+    playerY += (H * tp - playerY) * f;
+    laneGap = Math.min(W * 0.27, 150);
+
+    dogX += (lane - dogX) * Math.min(1, dt * 16);
+    if (invul > 0) invul -= dt;
+    if (shake > 0) shake -= dt;
+
+    if (state === 'play') {
+      while (cursor < dist + FAR) genChunk();
+      for (const o of objs) {
+        if (o.hit) continue;
+        const z = o.d - dist;
+        if (Math.abs(z) < 0.7 && Math.abs(o.lane - dogX) < 0.5) {
+          if (o.type === 'bone') {
+            o.hit = true; score++; bumpScore(); vibrate(8);
+            burst(sx(dogX, 1), playerY - laneGap * 0.55);
+          } else if (invul <= 0) {
+            o.hit = true; lives--; renderLives();
+            invul = 1.4; shake = 0.35; vibrate(90);
+            if (lives <= 0) endGame();
+          }
+        }
+      }
+    }
+    objs = objs.filter(o => o.d - dist > -3 && !(o.type === 'bone' && o.hit));
+
+    for (const p of particles) {
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 420 * dt; p.life -= dt * 1.8;
+    }
+    particles = particles.filter(p => p.life > 0);
+  }
+
+  function burst(x, y) {
+    for (let i = 0; i < 9; i++) {
+      const a = Math.random() * Math.PI * 2, v = 90 + Math.random() * 120;
+      particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 120, life: 1, r: 2 + Math.random() * 2.5 });
+    }
+  }
+
+  // Drawing helpers
+  function quad(x1, y1, x2, y2, x3, y3, x4, y4) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.lineTo(x4, y4); ctx.closePath(); ctx.fill();
+  }
+  function shadow(x, y, rx, ry) {
+    ctx.fillStyle = C.shadow;
+    ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function drawRoad() {
+    const sky = ctx.createLinearGradient(0, 0, 0, horizonY);
+    sky.addColorStop(0, C.skyTop); sky.addColorStop(1, C.skyLow);
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, horizonY + 1);
+    ctx.fillStyle = C.sand; ctx.fillRect(0, horizonY, W, H - horizonY);
+
+    const pF = proj(FAR), pN = proj(-5.4);
+    ctx.fillStyle = C.road;
+    quad(sx(-ROAD_HALF, pF), sy(pF), sx(ROAD_HALF, pF), sy(pF), sx(ROAD_HALF, pN), sy(pN), sx(-ROAD_HALF, pN), sy(pN));
+
+    // road edges
+    ctx.fillStyle = C.ink;
+    for (const s of [-1, 1]) {
+      const e = ROAD_HALF * s, w = 0.025;
+      quad(sx(e - w, pF), sy(pF), sx(e + w, pF), sy(pF), sx(e + w, pN), sy(pN), sx(e - w, pN), sy(pN));
+    }
+
+    // moving lane dashes
+    ctx.fillStyle = C.dash;
+    const period = 4, len = 1.8, phase = dist % period;
+    for (let z = -2.4 - phase; z < FAR; z += period) {
+      const z1 = Math.max(z, -2.4), z2 = z + len;
+      if (z2 <= -2.4) continue;
+      const p1 = proj(z1), p2 = proj(z2);
+      for (const lx of [-0.5, 0.5]) {
+        quad(sx(lx - 0.03, p1), sy(p1), sx(lx + 0.03, p1), sy(p1), sx(lx + 0.03, p2), sy(p2), sx(lx - 0.03, p2), sy(p2));
+      }
+    }
+
+    // thin posts beside the road for a sense of speed
+    const postPeriod = 7, postPhase = dist % postPeriod;
+    for (let z = FAR - ((FAR + postPhase) % postPeriod); z > -2; z -= postPeriod) {
+      const p = proj(z);
+      const a = Math.min(1, (FAR - z) / 14);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = C.ink;
+      for (const s of [-1, 1]) {
+        const x = sx(s * 2.35, p), w = Math.max(1, 0.035 * laneGap * p), h = 1.5 * laneGap * p;
+        ctx.fillRect(x - w / 2, sy(p) - h, w, h);
+        ctx.fillRect(x - w * 2.2, sy(p) - h, w * 4.4, Math.max(1, w * 0.8));
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.fillRect(0, horizonY, W, 1);
+  }
+
+  function drawBone(x, y, U) {
+    const bob = Math.sin(t * 5 + x * 0.05) * 0.04 * U;
+    shadow(x, y, 0.26 * U, 0.05 * U);
+    const cy = y - 0.3 * U + bob;
+    const w = 0.62 * U, h = 0.15 * U, r = 0.1 * U;
+    const shapes = () => {
+      ctx.beginPath();
+      ctx.rect(x - w / 2 + r * 0.6, cy - h / 2, w - r * 1.2, h);
+      for (const sxn of [-1, 1]) for (const syn of [-1, 1]) {
+        ctx.moveTo(x + sxn * (w / 2 - r) + r, cy + syn * r * 0.75);
+        ctx.arc(x + sxn * (w / 2 - r), cy + syn * r * 0.75, r, 0, Math.PI * 2);
+      }
+    };
+    ctx.lineWidth = Math.max(1.2, 0.05 * U); ctx.strokeStyle = C.cognac;
+    shapes(); ctx.stroke();
+    ctx.fillStyle = C.ivory; shapes(); ctx.fill();
+    if (U > 30) { // stitch detail, like on the leather goods
+      ctx.setLineDash([0.045 * U, 0.035 * U]);
+      ctx.lineWidth = Math.max(1, 0.014 * U);
+      ctx.beginPath(); ctx.moveTo(x - w / 2 + r * 1.2, cy); ctx.lineTo(x + w / 2 - r * 1.2, cy); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  function drawHydrant(x, y, U) {
+    shadow(x, y, 0.3 * U, 0.06 * U);
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(x - 0.24 * U, y - 0.08 * U, 0.48 * U, 0.08 * U);
+    ctx.fillRect(x - 0.16 * U, y - 0.62 * U, 0.32 * U, 0.56 * U);
+    ctx.beginPath(); ctx.arc(x, y - 0.62 * U, 0.17 * U, Math.PI, 0); ctx.fill();
+    ctx.fillRect(x - 0.04 * U, y - 0.86 * U, 0.08 * U, 0.08 * U);
+    ctx.fillRect(x - 0.27 * U, y - 0.46 * U, 0.54 * U, 0.1 * U);
+    ctx.fillStyle = C.cognac;
+    ctx.fillRect(x - 0.16 * U, y - 0.6 * U, 0.32 * U, Math.max(1, 0.03 * U));
+  }
+
+  function drawBarrier(x, y, U) {
+    shadow(x, y, 0.5 * U, 0.06 * U);
+    ctx.fillStyle = C.ink;
+    for (const s of [-1, 1]) ctx.fillRect(x + s * 0.36 * U - 0.03 * U, y - 0.5 * U, 0.06 * U, 0.5 * U);
+    const bx = x - 0.48 * U, by = y - 0.54 * U, bw = 0.96 * U, bh = 0.18 * U;
+    ctx.fillStyle = C.ivory; ctx.fillRect(bx, by, bw, bh);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.clip();
+    ctx.fillStyle = C.ink;
+    const step = 0.16 * U;
+    for (let sx0 = bx - bh; sx0 < bx + bw; sx0 += step * 2) quad(sx0, by + bh, sx0 + step, by + bh, sx0 + step + bh, by, sx0 + bh, by);
+    ctx.restore();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(1, 0.02 * U);
+    ctx.strokeRect(bx, by, bw, bh);
+  }
+
+  // The dog, seen from behind
+  function drawDog() {
+    const U = laneGap;
+    const x = sx(dogX, 1), y = playerY;
+    const run = t * (4 + speed * 0.45);
+    const bob = Math.abs(Math.sin(run)) * 0.04 * U;
+    const tilt = (lane - dogX) * 0.35;
+
+    if (invul > 0 && Math.floor(t * 12) % 2 === 0) ctx.globalAlpha = 0.3;
+    shadow(x, y, 0.3 * U, 0.06 * U);
+
+    ctx.save();
+    ctx.translate(x, y - bob);
+    ctx.rotate(tilt);
+    ctx.fillStyle = C.ink;
+
+    // hind legs, alternating
+    for (const s of [-1, 1]) {
+      const lift = Math.max(0, Math.sin(run + (s > 0 ? 0 : Math.PI))) * 0.09 * U;
+      const lx = s * 0.13 * U - 0.05 * U, lw = 0.1 * U;
+      ctx.beginPath(); ctx.roundRect(lx, -0.34 * U, lw, 0.34 * U - lift, 0.04 * U); ctx.fill();
+    }
+    // rump, back, head
+    ctx.beginPath(); ctx.ellipse(0, -0.42 * U, 0.25 * U, 0.23 * U, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -0.62 * U, 0.19 * U, 0.15 * U, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -0.83 * U, 0.14 * U, 0, Math.PI * 2); ctx.fill();
+    // floppy ears
+    const flap = Math.sin(run * 2) * 0.08;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(s * 0.14 * U, -0.8 * U, 0.055 * U, 0.12 * U, s * (0.45 + flap), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // tail, wagging
+    const wag = Math.sin(t * 13);
+    ctx.strokeStyle = C.ink; ctx.lineCap = 'round'; ctx.lineWidth = 0.065 * U;
+    ctx.beginPath();
+    ctx.moveTo(0, -0.58 * U);
+    ctx.quadraticCurveTo(0.22 * U * wag, -0.62 * U, 0.26 * U * wag, -0.86 * U);
+    ctx.stroke();
+    // cognac leather collar
+    ctx.strokeStyle = C.cognac; ctx.lineWidth = 0.045 * U; ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.moveTo(-0.14 * U, -0.715 * U); ctx.quadraticCurveTo(0, -0.745 * U, 0.14 * U, -0.715 * U); ctx.stroke();
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawObj(o, z) {
+    const p = proj(z), U = laneGap * p;
+    const x = sx(o.lane, p), y = sy(p);
+    ctx.globalAlpha = Math.max(0, Math.min(1, (FAR - z) / 12)) * (o.hit ? 0.35 : 1) * objAlpha;
+    if (o.type === 'bone') drawBone(x, y, U);
+    else if (o.type === 'hydrant') drawHydrant(x, y, U);
+    else drawBarrier(x, y, U);
+    ctx.globalAlpha = 1;
+  }
+
+  function draw() {
+    ctx.save();
+    if (shake > 0 && !reducedMotion) {
+      const s = shake / 0.35;
+      ctx.translate((Math.random() - 0.5) * 12 * s, (Math.random() - 0.5) * 6 * s);
+    }
+    drawRoad();
+    const list = objs.map(o => ({ o, z: o.d - dist })).filter(e => e.z < FAR && e.z > -2.6).sort((a, b) => b.z - a.z);
+    for (const e of list) if (e.z >= 0) drawObj(e.o, e.z);
+    drawDog();
+    for (const e of list) if (e.z < 0) drawObj(e.o, e.z);
+
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = C.cognac;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  let last = 0;
+  function frame(now) {
+    const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  document.addEventListener('visibilitychange', () => { last = 0; });
+  renderLives();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
